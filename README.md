@@ -1,8 +1,8 @@
 # Reference Sequence and Annotation Files
 
-Supplementary genome reference files in addition to the basic FASTA and GTF.
+Supplementary genome reference files in addition to the basic FASTA and GTF as well as notes and commentary.
 
-Disclaimer: Reference genomes are complicated (see: [which human reference genome to use](https://lh3.github.io/2017/11/13/which-human-reference-genome-to-use)).
+Disclaimer: Reference genomes are complicated and there are many caveats, even for commonly used ones (see: [which human reference genome to use](https://lh3.github.io/2017/11/13/which-human-reference-genome-to-use)).
 Use at your own risk.
 
 ---
@@ -11,7 +11,9 @@ Use at your own risk.
 
 Genomics bioinformatic tools generally require a reference file/index, but the exact requirements can vary.
 This repository includes notes for setting up a reference genome directory that can be used for common analysis types (RNA-seq, ChIP-seq, whole genome/exome sequencing) as well as some pre-generated supplementary files.
-The protocol is inspired by Illumina iGenomes, a collection of sequence and annotation files for commonly analyzed genomes.
+The organization scheme is inspired by Illumina iGenomes, a collection of sequence and annotation files for commonly analyzed genomes.
+The files are placed in separate directories based on the genome reference version, such as `hg38` or `mm10`.
+Within each genome directory, the files are named based on the type.
 
 The two primary files that are required:
 
@@ -21,14 +23,53 @@ The two primary files that are required:
 These can usually be downloaded from genome browsers like Ensembl, UCSC, or NCBI.
 The best source will vary depending on the species of interest.
 There are also species-specific resources like FlyBase or WormBase.
+The differences can be minor (different contig names), but they could be more substantial (thousands of additional genes). 
 
-To avoid potential downstream problems, be aware of:
+## Sanity Testing
 
-* contig names (such as "chr1") should be identical in the FASTA (the full line after `>`) and the GTF (column 1)
-* contig names should not have spaces
-* the GTF should only contain contigs that are available in the FASTA
-* the GTF should include `gene_name` or `gene_id` attributes (in column 9) for all records
-* the GTF should include `gene`, `transcript`, and `exon` features (column 3)
+There are a few issues to be aware of to avoid potential downstream problems.
+Both `genome.fa` and `genes.gtf` have to be valid FASTA and GTF files, but they should also be compatible with each other.
+
+If a FASTA index and a sequence dictionary can be successfully generated (see below), the FASTA is likely compatible with all tools.
+One exception is that contig names (such as "chr1") with spaces will cause issues for some applications.
+Check contig names with:
+
+```bash
+grep "^>" genome.fa
+```
+
+Contig names should be identical in the FASTA and the GTF.
+Create a list of contigs in both files and check that the GTF does not have more contigs than the FASTA:
+
+```bash
+cat genome.fa.fai | cut -f 1 | sort > contigs.fa.txt
+cat genes.gtf | cut -f 1 | sort | uniq > contigs.gtf.txt
+wc -l contigs.*.txt
+```
+
+This counts the total number of contigs from each file.
+
+Check that all the contig names in the GTF are present in the FASTA:
+
+```bash
+diff --side-by-side --suppress-common-lines contigs.fa.txt contigs.gtf.txt
+```
+
+Only the non-matching contigs will be output.
+If the FASTA has additional contigs, that should be fine.
+
+The GTF should include `gene_name` and `gene_id` attributes for all records.
+Check the number of genes with and without those attributes:
+
+```bash
+cat genes.gtf | grep -F -v "transcript_id" | grep -F -w "gene" | wc -l
+cat genes.gtf | grep -F -v "transcript_id" | grep -F -w "gene" | grep -F "gene_name" | wc -l
+cat genes.gtf | grep -F -v "transcript_id" | grep -F -w "gene" | grep -F "gene_id" | wc -l
+```
+
+The three numbers should be identical.
+
+The GTF should include `gene`, `transcript`, and `exon` features (column 3) for all genes.
 
 ## Generating Common Supplementary Files
 

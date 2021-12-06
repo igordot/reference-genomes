@@ -137,9 +137,7 @@ STAR --runMode genomeGenerate --sjdbOverhang 100 --runThreadN 4 \
 Generate kallisto index:
 
 ```bash
-kallisto index --make-unique \
-  --index kallisto.idx \
-  transcripts.fa
+kallisto index --make-unique --index kallisto.idx transcripts.fa  
 ```
 
 Generate Salmon index:
@@ -150,14 +148,16 @@ salmon index --type quasi --threads 4 \
   --index Salmon
 ```
 
-Generate  Salmon index for decoy-aware selective alignment (requires Salmon 0.14+):
+Generate Salmon (version 1.2+) index for decoy-aware selective alignment:
 
 ```bash
-bash /path/to/SalmonTools/scripts/generateDecoyTranscriptome.sh \
-  -j 4 -g genome.fa -a genes.gtf -t transcripts.fa \
-  -o Salmon
-salmon index --type quasi --threads 4 \
-  --transcripts Salmon/gentrome.fa \
+mkdir Salmon
+cat transcripts.fa genome.fa > Salmon/gentrome.fa
+gzip -v Salmon/gentrome.fa
+# a default k of 31 is optimized for reads >75bp, consider a smaller k with shorter reads
+salmon index --threads 4 --kmerLen 23 \
+  --transcripts Salmon/gentrome.fa.gz \
   --decoys Salmon/decoys.txt \
+  --gencode \
   --index Salmon
 ```
